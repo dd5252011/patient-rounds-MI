@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#11505c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Patient rounds">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="臨床藥師查房病人管理系統 — 腎肝功能、eGFR 自動計算、用藥與檢驗追蹤">
+<title>Patient rounds · 查房病人管理系統</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#f4f1e9; --card:#fffdf7; --ink:#1b2a2c; --muted:#6c7b78;
+  --primary:#11505c; --primary-d:#0c3a44; --line:#e3ddcf; --line-soft:#efe9dc;
+  --red:#bd3b2c; --red-bg:#fbeae6; --amber:#c47e1f; --amber-bg:#fdf2dd;
+  --green:#2e7d52; --green-bg:#e6f1ea; --blue:#2f6fb0; --blue-bg:#e8f0f8;
+  --shadow:0 1px 2px rgba(20,40,40,.05),0 8px 24px -12px rgba(20,40,40,.18);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  font-family:"Noto Sans TC","Spectral",sans-serif;
+  background:
+    radial-gradient(900px 500px at 100% -10%,rgba(17,80,92,.06),transparent 60%),
+    var(--paper);
+  color:var(--ink);font-size:14px;line-height:1.5;min-height:100vh;
+}
+.mono{font-family:"IBM Plex Mono",monospace}
+button{font-family:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit;font-size:14px}
+h1,h2,h3{margin:0}
+.serif{font-family:"Spectral","Noto Serif TC",serif}
+
+/* ---------- top bar ---------- */
+.topbar{
+  position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:14px;
+  padding:12px 18px;background:rgba(244,241,233,.86);backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line);
+}
+.brand{display:flex;align-items:baseline;gap:10px;min-width:0}
+.brand .mark{
+  font-family:"Spectral",serif;font-weight:700;font-size:20px;letter-spacing:.5px;
+  color:var(--primary);white-space:nowrap;
+}
+.brand .sub{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topbar .spacer{flex:1}
+.tbtn{
+  border:1px solid var(--line);background:var(--card);color:var(--ink);
+  padding:7px 12px;border-radius:9px;font-size:13px;font-weight:500;
+  display:inline-flex;align-items:center;gap:6px;transition:.15s;white-space:nowrap;
+}
+.tbtn:hover{border-color:var(--primary);color:var(--primary)}
+.tbtn.primary{background:var(--primary);color:#fff;border-color:var(--primary)}
+.tbtn.primary:hover{background:var(--primary-d);color:#fff}
+.tbtn.ghost{background:transparent}
+#menuBtn{display:none}
+
+/* ---------- layout ---------- */
+.shell{display:grid;grid-template-columns:288px 1fr;align-items:start}
+.sidebar{
+  position:sticky;top:57px;height:calc(100vh - 57px);overflow-y:auto;
+  border-right:1px solid var(--line);padding:14px 12px;background:rgba(255,253,247,.4);
+}
+.search{width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);margin-bottom:10px}
+.search:focus{outline:none;border-color:var(--primary)}
+.plist{display:flex;flex-direction:column;gap:7px}
+.pcard{
+  border:1px solid var(--line);border-radius:12px;padding:10px 11px;background:var(--card);
+  display:flex;gap:10px;align-items:flex-start;transition:.15s;cursor:pointer;position:relative;
+}
+.pcard:hover{border-color:var(--primary)}
+.pcard.active{border-color:var(--primary);box-shadow:inset 3px 0 0 var(--primary),var(--shadow)}
+.bedbadge{
+  font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:13px;
+  background:var(--primary);color:#fff;border-radius:8px;min-width:42px;text-align:center;
+  padding:5px 4px;line-height:1.1;
+}
+.bedbadge small{display:block;font-size:8px;font-weight:500;opacity:.8;letter-spacing:1px}
+.pcard .pname{font-weight:700;font-size:14.5px;line-height:1.25}
+.pcard .pmeta{font-size:11.5px;color:var(--muted)}
+.dotrow{display:flex;gap:4px;flex-wrap:wrap;margin-top:5px}
+.dot{font-size:10px;padding:1px 7px;border-radius:999px;font-weight:600;border:1px solid transparent}
+.dot.r{background:var(--red-bg);color:var(--red)}
+.dot.a{background:var(--amber-bg);color:var(--amber)}
+.dot.b{background:var(--blue-bg);color:var(--blue)}
+.dot.g{background:var(--green-bg);color:var(--green)}
+.emptyhint{color:var(--muted);font-size:13px;text-align:center;padding:40px 10px}
+
+/* ---------- main ---------- */
+.main{padding:18px 22px 80px;max-width:1080px;width:100%;margin:0 auto}
+.welcome{padding:60px 20px;text-align:center;color:var(--muted)}
+.welcome h2{font-family:"Spectral",serif;font-size:28px;color:var(--primary);margin-bottom:8px}
+.subnav{
+  position:sticky;top:57px;z-index:20;display:flex;gap:6px;flex-wrap:wrap;
+  padding:10px 0;margin-bottom:6px;background:linear-gradient(var(--paper) 70%,transparent);
+}
+.subnav a{
+  text-decoration:none;color:var(--muted);font-size:12.5px;font-weight:500;
+  padding:5px 11px;border:1px solid var(--line);border-radius:999px;background:var(--card);transition:.15s;
+}
+.subnav a:hover{color:var(--primary);border-color:var(--primary)}
+
+.phead{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;margin-bottom:6px}
+.phead .h-bed{font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:14px;background:var(--primary);color:#fff;padding:5px 11px;border-radius:9px}
+.phead .h-name{font-family:"Noto Serif TC",serif;font-weight:700;font-size:26px;line-height:1}
+.phead .h-meta{font-size:13px;color:var(--muted)}
+.alertbar{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0 4px}
+.alert{font-size:12px;font-weight:600;padding:4px 11px;border-radius:8px;border:1px solid transparent;display:inline-flex;gap:5px;align-items:center}
+.alert.r{background:var(--red-bg);color:var(--red);border-color:#eccac2}
+.alert.a{background:var(--amber-bg);color:var(--amber);border-color:#ecd9a8}
+.alert.b{background:var(--blue-bg);color:var(--blue);border-color:#cadcf0}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 18px 16px;margin-bottom:16px;box-shadow:var(--shadow);scroll-margin-top:110px}
+.card>.chead{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.chead .ctitle{font-family:"Spectral",serif;font-weight:600;font-size:19px;color:var(--primary);letter-spacing:.3px}
+.chead .ctag{font-size:11px;color:var(--muted);font-weight:500;background:var(--paper);border:1px solid var(--line);padding:2px 9px;border-radius:999px}
+.chead .spacer{flex:1}
+
+/* field grid */
+.grid{display:grid;gap:12px 16px;grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
+.field label{display:block;font-size:11.5px;color:var(--muted);font-weight:600;margin-bottom:4px;letter-spacing:.3px}
+.field input,.field select,.field textarea{
+  width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--ink);
+}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(17,80,92,.08)}
+.field textarea{resize:vertical;min-height:60px;line-height:1.55}
+.field .computed{
+  display:flex;align-items:baseline;gap:6px;padding:8px 10px;border:1px dashed var(--line);border-radius:9px;background:var(--paper);
+}
+.field .computed .val{font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:16px}
+.field .computed .unit{font-size:11px;color:var(--muted)}
+.calclink{font-size:11px;color:var(--primary);text-decoration:underline;cursor:pointer;margin-left:auto;background:none;border:none;padding:0}
+
+/* panels (dated series) */
+.panel{border:1px solid var(--line-soft);border-radius:12px;margin-bottom:11px;overflow:hidden;background:#fffefb}
+.panel>.phd{display:flex;align-items:center;gap:9px;padding:10px 12px;background:var(--paper);border-bottom:1px solid var(--line-soft)}
+.panel .ptitle{font-weight:700;font-size:14px}
+.panel .punit{font-size:11px;color:var(--muted)}
+.panel .spacer{flex:1}
+.miniadd{border:1px solid var(--primary);color:var(--primary);background:#fff;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:600}
+.miniadd:hover{background:var(--primary);color:#fff}
+.latestrow{display:flex;flex-wrap:wrap;gap:8px 18px;padding:11px 13px}
+.lv{display:flex;flex-direction:column;gap:1px}
+.lv .lk{font-size:10.5px;color:var(--muted);font-weight:600;letter-spacing:.2px}
+.lv .lval{font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:15px}
+.lv .lval .u{font-size:10px;color:var(--muted);font-weight:400;margin-left:2px}
+.lval.flag-high{color:var(--red)} .lval.flag-low{color:var(--blue)}
+.lval .arrow{font-size:11px;margin-left:2px}
+.lv .lref{font-size:9.5px;color:var(--muted)}
+.lv .ldate{font-size:10px;color:var(--muted)}
+.nodata{color:var(--muted);font-size:12.5px;padding:11px 13px}
+.hist{padding:0 13px 12px}
+.histtoggle{font-size:11.5px;color:var(--primary);background:none;border:none;padding:6px 0;cursor:pointer}
+table.ht{width:100%;border-collapse:collapse;font-size:12px;margin-top:2px}
+table.ht th,table.ht td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line-soft);white-space:nowrap}
+table.ht th{font-size:10.5px;color:var(--muted);font-weight:600;letter-spacing:.3px}
+table.ht td.mono{font-family:"IBM Plex Mono",monospace}
+table.ht .rowact{display:flex;gap:8px}
+table.ht .rowact button{background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;text-decoration:underline}
+table.ht .rowact button:hover{color:var(--primary)}
+.scrollx{overflow-x:auto}
+.txtval.high{color:var(--red);font-weight:700} .txtval.norm{color:var(--green);font-weight:600}
+
+/* medications */
+.medtable{width:100%;border-collapse:collapse;font-size:13px}
+.medtable th{font-size:10.5px;color:var(--muted);text-align:left;font-weight:600;padding:6px 8px;border-bottom:1px solid var(--line)}
+.medtable td{padding:7px 8px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+.medtable input,.medtable select,.medtable textarea{width:100%;border:1px solid transparent;background:transparent;padding:5px 6px;border-radius:7px}
+.medtable input:hover,.medtable select:hover,.medtable textarea:hover{border-color:var(--line)}
+.medtable input:focus,.medtable select:focus,.medtable textarea:focus{outline:none;border-color:var(--primary);background:#fff}
+.medtable textarea{resize:vertical;min-height:34px;line-height:1.45}
+.statussel{font-weight:600;border-radius:7px}
+.st-none{color:var(--muted)} .st-monitor{color:var(--blue)} .st-renal{color:var(--amber)}
+.st-hepatic{color:#9a5b18} .st-adjust{color:var(--amber)} .st-stop{color:var(--red)} .st-continue{color:var(--green)}
+.medrow-stop{background:rgba(189,59,44,.04)}
+.delrow{background:none;border:1px solid var(--line);border-radius:7px;color:var(--muted);width:26px;height:26px;font-size:14px;line-height:1}
+.delrow:hover{border-color:var(--red);color:var(--red)}
+.addrow{margin-top:10px;border:1px dashed var(--line);color:var(--primary);background:var(--paper);border-radius:9px;padding:8px 14px;font-weight:600;font-size:13px}
+.addrow:hover{border-color:var(--primary)}
+.empiric-chip{display:inline-flex;align-items:center;gap:5px;font-size:11px}
+
+/* modal */
+.overlay{position:fixed;inset:0;background:rgba(18,30,30,.45);backdrop-filter:blur(2px);z-index:90;display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto}
+.modal{background:var(--card);border:1px solid var(--line);border-radius:18px;max-width:520px;width:100%;box-shadow:0 30px 60px -20px rgba(0,0,0,.4);overflow:hidden;animation:pop .18s ease}
+@keyframes pop{from{transform:translateY(8px) scale(.98);opacity:0}to{transform:none;opacity:1}}
+.modal .mhd{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+.modal .mhd h3{font-family:"Spectral",serif;font-size:18px;color:var(--primary)}
+.modal .mhd .x{margin-left:auto;border:none;background:none;font-size:22px;color:var(--muted);line-height:1}
+.modal .mbody{padding:18px 20px;max-height:62vh;overflow-y:auto}
+.modal .mfoot{padding:14px 20px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end}
+.calc-modal{max-width:560px}
+.calc-block{margin-bottom:16px}
+.calc-block h4{font-size:13px;color:var(--primary);font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:8px}
+.calc-formula{font-family:"IBM Plex Mono",monospace;font-size:13px;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:11px 13px;line-height:1.9;white-space:pre-wrap;overflow-x:auto}
+.calc-formula .hl{color:var(--primary);font-weight:600}
+.calc-res{font-family:"IBM Plex Mono",monospace;font-size:20px;font-weight:600;color:var(--primary);margin-top:8px}
+.calc-note{font-size:11.5px;color:var(--muted);margin-top:6px;line-height:1.6}
+.calc-stage{display:inline-block;font-weight:600;font-size:12px;padding:3px 10px;border-radius:8px;background:var(--green-bg);color:var(--green);margin-top:6px}
+
+/* misc */
+.txt-card{margin-bottom:11px}
+.notelog{display:flex;flex-direction:column;gap:9px}
+.noteitem{border:1px solid var(--line-soft);border-radius:11px;padding:10px 12px;background:#fffefb}
+.noteitem .nd{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--primary);font-weight:600;margin-bottom:4px;display:flex;align-items:center}
+.noteitem .nd button{margin-left:auto;background:none;border:none;color:var(--muted);font-size:11px;text-decoration:underline;cursor:pointer}
+.noteitem .ntext{white-space:pre-wrap;line-height:1.6;font-size:13px}
+.savechip{font-size:11px;color:var(--green);display:none;align-items:center;gap:5px}
+.savechip.show{display:inline-flex}
+#syncBtn[data-s="on"]{border-color:var(--green);color:var(--green)}
+#syncBtn[data-s="busy"]{border-color:var(--amber);color:var(--amber)}
+#syncBtn[data-s="err"]{border-color:var(--red);color:var(--red)}
+.sync-note{font-size:12px;line-height:1.7;background:var(--amber-bg);border:1px solid #ecd9a8;color:#7a5410;border-radius:10px;padding:11px 13px;margin-bottom:14px}
+.sync-note b{color:var(--red)}
+.seg{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.seg button{flex:1;min-width:96px;border:1px solid var(--line);background:var(--card);border-radius:9px;padding:8px;font-size:12.5px;font-weight:600;color:var(--muted)}
+.seg button.on{border-color:var(--primary);color:var(--primary);background:#fff;box-shadow:inset 0 -2px 0 var(--primary)}
+.steps{font-size:12px;line-height:1.75;color:var(--muted);background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:11px 13px;margin-top:12px}
+.steps code{font-family:"IBM Plex Mono",monospace;font-size:11px;background:#fff;border:1px solid var(--line);border-radius:5px;padding:1px 5px;color:var(--ink);word-break:break-all}
+.steps ol{margin:6px 0 0;padding-left:20px}
+.footer-note{text-align:center;color:var(--muted);font-size:11px;padding:10px 0 0;line-height:1.7}
+.danger{color:var(--red)!important;border-color:var(--red)!important}
+.hidefile{display:none}
+
+@media (max-width:860px){
+  .shell{grid-template-columns:1fr}
+  .sidebar{position:fixed;top:57px;left:0;width:300px;max-width:86vw;z-index:50;height:calc(100vh - 57px);
+    background:var(--paper);transform:translateX(-105%);transition:transform .22s ease;box-shadow:8px 0 30px -10px rgba(0,0,0,.3)}
+  .sidebar.open{transform:none}
+  #menuBtn{display:inline-flex}
+  .main{padding:14px 13px 80px}
+  .brand .sub{display:none}
+  .subnav{top:57px}
+  .scrim{position:fixed;inset:57px 0 0 0;background:rgba(0,0,0,.3);z-index:45;display:none}
+  .scrim.show{display:block}
+}
+@media print{
+  .topbar,.sidebar,.subnav,.miniadd,.addrow,.delrow,.calclink,.histtoggle,.scrim,#menuBtn,.rowact{display:none!important}
+  body{background:#fff}
+  .card{box-shadow:none;break-inside:avoid;page-break-inside:avoid}
+  .main{max-width:100%}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <button id="menuBtn" class="tbtn ghost" onclick="toggleSidebar()" aria-label="病人清單">☰</button>
+  <div class="brand">
+    <span class="mark">Patient rounds</span>
+    <span class="sub">臨床藥師查房病人管理系統</span>
+  </div>
+  <div class="spacer"></div>
+  <span class="savechip" id="saveChip">✓ 已儲存</span>
+  <button class="tbtn ghost" id="syncBtn" onclick="openSyncModal()" title="雲端同步設定"><span id="syncIcon">☁</span> <span id="syncLabel">同步</span></button>
+  <button class="tbtn ghost" onclick="loadDemo()" title="載入一筆示範病人">示範</button>
+  <button class="tbtn ghost" onclick="exportJSON()">匯出</button>
+  <button class="tbtn ghost" onclick="document.getElementById('importFile').click()">匯入</button>
+  <button class="tbtn primary" onclick="addPatient()">＋ 新增病人</button>
+  <input type="file" id="importFile" class="hidefile" accept="application/json" onchange="importJSON(event)">
+</div>
+
+<div class="scrim" id="scrim" onclick="toggleSidebar()"></div>
+
+<div class="shell">
+  <aside class="sidebar" id="sidebar">
+    <input class="search" id="search" placeholder="搜尋床號 / 姓名 / 病歷號…" oninput="renderList()">
+    <div class="plist" id="plist"></div>
+  </aside>
+  <main class="main" id="main"></main>
+</div>
+
+<div id="modalRoot"></div>
+
+<script>
+/* ============================================================
+   STORAGE LAYER  — uses Claude artifact window.storage when
+   present, otherwise falls back to localStorage (downloaded file)
+   ============================================================ */
+const KEY='pharmd_rounds_v1';
+const CFGKEY='pharmd_sync_cfg';   // stored per-device only (never exported)
+const Store={
+  async load(){
+    try{ if(window.storage){ const r=await window.storage.get(KEY); return r&&r.value?JSON.parse(r.value):null; } }catch(e){}
+    try{ const ls=localStorage.getItem(KEY); return ls?JSON.parse(ls):null; }catch(e){ return null; }
+  },
+  async save(data){
+    const s=JSON.stringify(data);
+    try{ if(window.storage){ await window.storage.set(KEY,s); flashSaved(); return; } }catch(e){}
+    try{ localStorage.setItem(KEY,s); flashSaved(); }catch(e){}
+  }
+};
+let saveTimer=null, pushTimer=null;
+function persist(){
+  db.updatedAt=Date.now();
+  clearTimeout(saveTimer); saveTimer=setTimeout(()=>Store.save(db),350);
+  if(Sync.configured()&&Sync.cfg.auto){ clearTimeout(pushTimer); pushTimer=setTimeout(()=>Sync.push(),1200); }
+}
+function flashSaved(){ const c=document.getElementById('saveChip'); c.classList.add('show'); clearTimeout(flashSaved._t); flashSaved._t=setTimeout(()=>c.classList.remove('show'),1400); }
+
+/* ============================================================
+   CLOUD SYNC LAYER  — user-owned backend (Supabase or JSONBin).
+   The whole database is stored as ONE JSON document keyed by a
+   user-defined "workspace". Last-write-wins via updatedAt.
+   Config (URLs/keys) lives in localStorage on each device only.
+   ============================================================ */
+const Sync={
+  cfg:{provider:'none',auto:true,workspace:'main',sbUrl:'',sbKey:'',sbTable:'pharmd_state',jbId:'',jbKey:''},
+  loadCfg(){ try{ const c=JSON.parse(localStorage.getItem(CFGKEY)); if(c)Object.assign(this.cfg,c); }catch(e){} },
+  saveCfg(){ try{ localStorage.setItem(CFGKEY,JSON.stringify(this.cfg)); }catch(e){} },
+  configured(){ const c=this.cfg; if(c.provider==='supabase')return !!(c.sbUrl&&c.sbKey); if(c.provider==='jsonbin')return !!(c.jbId&&c.jbKey); return false; },
+  setStatus(s,msg){ const b=document.getElementById('syncBtn'),i=document.getElementById('syncIcon'),l=document.getElementById('syncLabel');
+    if(!b)return; b.dataset.s=s;
+    i.textContent = s==='busy'?'⟳':s==='err'?'⚠':'☁';
+    l.textContent = msg|| (s==='on'?'已同步':s==='busy'?'同步中':s==='err'?'同步失敗':'同步');
+  },
+  async pull(){
+    if(!this.configured())return null;
+    const c=this.cfg;
+    if(c.provider==='supabase'){
+      const u=`${c.sbUrl.replace(/\/$/,'')}/rest/v1/${c.sbTable}?id=eq.${encodeURIComponent(c.workspace)}&select=data`;
+      const r=await fetch(u,{headers:{apikey:c.sbKey,Authorization:'Bearer '+c.sbKey}});
+      if(!r.ok)throw new Error('Supabase '+r.status);
+      const rows=await r.json(); return rows&&rows[0]?rows[0].data:null;
+    }
+    if(c.provider==='jsonbin'){
+      const r=await fetch(`https://api.jsonbin.io/v3/b/${c.jbId}/latest`,{headers:{'X-Master-Key':c.jbKey}});
+      if(!r.ok)throw new Error('JSONBin '+r.status);
+      const j=await r.json(); return j.record&&j.record.patients?j.record:null;
+    }
+    return null;
+  },
+  async pushRaw(payload){
+    const c=this.cfg;
+    if(c.provider==='supabase'){
+      const u=`${c.sbUrl.replace(/\/$/,'')}/rest/v1/${c.sbTable}`;
+      const r=await fetch(u,{method:'POST',headers:{apikey:c.sbKey,Authorization:'Bearer '+c.sbKey,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'},
+        body:JSON.stringify([{id:c.workspace,data:payload,updated_at:new Date().toISOString()}])});
+      if(!r.ok)throw new Error('Supabase '+r.status+' '+(await r.text()).slice(0,120));
+    } else if(c.provider==='jsonbin'){
+      const r=await fetch(`https://api.jsonbin.io/v3/b/${c.jbId}`,{method:'PUT',headers:{'X-Master-Key':c.jbKey,'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      if(!r.ok)throw new Error('JSONBin '+r.status);
+    }
+  },
+  async push(){
+    if(!this.configured())return;
+    this.setStatus('busy');
+    try{ await this.pushRaw(db); this.cfg._last=Date.now(); this.setStatus('on','已同步 '+hhmm()); }
+    catch(e){ this.setStatus('err'); console.warn('push fail',e); }
+  },
+  // smart sync on load: adopt whichever is newer
+  async initialSync(){
+    if(!this.configured()){ this.setStatus('idle','未設定'); return; }
+    this.setStatus('busy');
+    try{
+      const remote=await this.pull();
+      const localT=db.updatedAt||0, remoteT=remote?(remote.updatedAt||0):-1;
+      if(remote && (remoteT>localT || !db.patients.length)){
+        db=remote; db.patients=(db.patients||[]).map(migrateP); if(!db.selectedId)db.selectedId=db.patients[0]?.id||null;
+        await Store.save(db); renderList(); renderMain();
+      } else if(localT>remoteT){
+        await this.pushRaw(db);
+      }
+      this.setStatus('on','已同步 '+hhmm());
+    }catch(e){ this.setStatus('err'); console.warn('sync fail',e); }
+  },
+  async forcePull(){ if(!this.configured())return alert('尚未設定雲端。');
+    if(!confirm('將以「雲端」資料覆蓋這台電腦目前的資料，確定？'))return;
+    this.setStatus('busy');
+    try{ const remote=await this.pull(); if(!remote)throw new Error('雲端尚無資料');
+      db=remote; db.patients=(db.patients||[]).map(migrateP); if(!db.selectedId)db.selectedId=db.patients[0]?.id||null;
+      await Store.save(db); renderList(); renderMain(); this.setStatus('on','已同步 '+hhmm()); closeModal();
+    }catch(e){ this.setStatus('err'); alert('拉取失敗：'+e.message); } },
+  async forcePush(){ if(!this.configured())return alert('尚未設定雲端。');
+    if(!confirm('將以「這台電腦」資料覆蓋雲端，確定？'))return;
+    this.setStatus('busy');
+    try{ db.updatedAt=Date.now(); await this.pushRaw(db); await Store.save(db); this.setStatus('on','已同步 '+hhmm()); alert('已推送至雲端。'); }
+    catch(e){ this.setStatus('err'); alert('推送失敗：'+e.message); } }
+};
+function hhmm(){ const d=new Date(); return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); }
+
+/* ============================================================
+   DATA MODEL
+   ============================================================ */
+let db={patients:[],selectedId:null};
+const uid=()=>Math.random().toString(36).slice(2,10);
+const today=()=>new Date().toISOString().slice(0,10);
+
+function blankPatient(){
+  return {
+    id:uid(),
+    bed:'', name:'', mrn:'', admitDate:'', gender:'', allergy:'', age:'', heightCm:'',
+    cgWeight:'actual',
+    risk:'', past:'', active:'', surgery:'', intubation:false, dialysis:false,
+    gcs:'', dialysisMode:'', bloodFlow:'', dialysateFlow:'', plan:'',
+    panels:{ weight:[],scr:[],io:[],bun:[],liver:[],electrolyte:[],infection:[],cbc:[],culture:[],filmarray:[],others:[] },
+    dailyNotes:[]
+  };
+}
+
+/* ============================================================
+   PANEL DEFINITIONS (dated lab/observation series)
+   ============================================================ */
+const POS=['', '陰性 (−)', '陽性 (+)', '未檢驗', 'pending'];
+const PANELS={
+  weight:{title:'每日體重 Weight',tag:'每日',fields:[{k:'value',label:'體重 Weight',unit:'kg',type:'num'}]},
+  scr:{title:'Scr 血清肌酸酐',tag:'每日',fields:[{k:'value',label:'Scr',unit:'mg/dL',type:'num',ref:[0.6,1.2]}]},
+  io:{title:'Intake / Output',tag:'每日',fields:[
+      {k:'uo',label:'每日尿量 U/O',unit:'mL',type:'num'},
+      {k:'intake',label:'Intake',unit:'mL',type:'num'},
+      {k:'output',label:'Output',unit:'mL',type:'num'},
+      {k:'net',label:'體液平衡差值 (I − O)',unit:'mL',type:'auto'}]},
+  bun:{title:'BUN',tag:'',fields:[{k:'value',label:'BUN',unit:'mg/dL',type:'num',ref:[7,20]}]},
+  liver:{title:'Liver function',tag:'每日',fields:[
+      {k:'alt',label:'ALT',unit:'U/L',type:'num',ref:[0,40]},
+      {k:'bili',label:'Bilirubin (total)',unit:'mg/dL',type:'num',ref:[0.3,1.2]},
+      {k:'alk',label:'ALK-P (鹼性磷酸酶)',unit:'U/L',type:'num',ref:[40,130]},
+      {k:'ggt',label:'γ-GT',unit:'U/L',type:'num',ref:[0,55]},
+      {k:'ammonia',label:'Ammonia',unit:'µg/dL',type:'num',ref:[15,45]}]},
+  electrolyte:{title:'Electrolyte',tag:'每日',fields:[
+      {k:'na',label:'Na',unit:'mmol/L',type:'num',ref:[135,145]},
+      {k:'k',label:'K',unit:'mmol/L',type:'num',ref:[3.5,5.1]},
+      {k:'ca',label:'Ca',unit:'mg/dL',type:'num',ref:[8.4,10.2]},
+      {k:'p',label:'P',unit:'mg/dL',type:'num',ref:[2.5,4.5]},
+      {k:'mg',label:'Mg',unit:'mg/dL',type:'num',ref:[1.8,2.4]}]},
+  infection:{title:'Infection index',tag:'每日',fields:[
+      {k:'crp',label:'C.R.P',unit:'mg/dL',type:'num',ref:[0,0.5]},
+      {k:'lactate',label:'Lactic Acid',unit:'mmol/L',type:'num',ref:[0.5,2.0]}]},
+  cbc:{title:'Blood Routine (CBC)',tag:'每日',fields:[
+      {k:'wbc',label:'WBC',unit:'10³/µL',type:'num',ref:[4,10]},
+      {k:'rbc',label:'RBC',unit:'10⁶/µL',type:'num',ref:[4.0,5.5]},
+      {k:'hb',label:'Hb',unit:'g/dL',type:'num',ref:[12,16]},
+      {k:'hct',label:'Hct',unit:'%',type:'num',ref:[36,50]},
+      {k:'mcv',label:'MCV',unit:'fL',type:'num',ref:[80,100]},
+      {k:'mch',label:'MCH',unit:'pg',type:'num',ref:[27,33]},
+      {k:'mchc',label:'MCHC',unit:'g/dL',type:'num',ref:[32,36]},
+      {k:'plt',label:'Platelet',unit:'10³/µL',type:'num',ref:[150,400]},
+      {k:'seg',label:'Seg / Neut',unit:'%',type:'num',ref:[40,75]},
+      {k:'band',label:'Band',unit:'%',type:'num'},
+      {k:'lym',label:'LYM 淋巴球',unit:'%',type:'num',ref:[20,40]},
+      {k:'mono',label:'MONO 單核球',unit:'%',type:'num',ref:[2,8]},
+      {k:'eo',label:'EO 嗜酸性球',unit:'%',type:'num',ref:[0,6]},
+      {k:'baso',label:'BASO 嗜鹼性球',unit:'%',type:'num',ref:[0,1]},
+      {k:'nrbc',label:'NRBC',unit:'/100WBC',type:'num',ref:[0,0]}]},
+  culture:{title:'Culture',tag:'',fields:[
+      {k:'source',label:'檢體來源 Source',type:'text',ph:'Blood / Urine / Sputum…'},
+      {k:'organism',label:'菌種 Organism',type:'text'},
+      {k:'result',label:'結果 Result',type:'text',ph:'No growth / 菌量 / 報告狀態…'},
+      {k:'note',label:'抗藥性 / 備註 (S/I/R)',type:'textarea'}]},
+  filmarray:{title:'FilmArray',tag:'',fields:[
+      {k:'type',label:'Panel',type:'text',ph:'BCID / Pneumonia / Meningitis…'},
+      {k:'result',label:'結果 Result',type:'textarea'}]},
+  others:{title:'Others 病原檢驗',tag:'',fields:[
+      {k:'legionella',label:'Legionella',type:'select',opts:POS},
+      {k:'mycoplasma',label:'Mycoplasma',type:'select',opts:POS},
+      {k:'streptococcus',label:'Streptococcus',type:'select',opts:POS},
+      {k:'chlamydia',label:'Chlamydia',type:'select',opts:POS},
+      {k:'covid',label:'Covid-19',type:'select',opts:POS},
+      {k:'influenza',label:'Influenza A+B',type:'select',opts:POS},
+      {k:'result',label:'結果 Result / 備註',type:'textarea',ph:'其他病原、Ct 值、報告判讀…'}]}
+};
+
+/* ============================================================
+   CLINICAL CALCULATIONS
+   ============================================================ */
+const num=v=>{const n=parseFloat(v);return isFinite(n)?n:null;};
+const r1=n=>n==null?null:Math.round(n*10)/10;
+const r2=n=>n==null?null:Math.round(n*100)/100;
+
+function calcIBW(h,g){ if(!num(h))return null; const inch=num(h)/2.54; const base=g==='F'?45.5:50; return base+2.3*(inch-60); }
+function calcABW(actual,ibw){ if(actual==null||ibw==null)return null; return ibw+0.4*(actual-ibw); }
+function calcBMI(w,h){ if(!num(w)||!num(h))return null; const m=num(h)/100; return num(w)/(m*m); }
+function calcCG(age,scr,wt,g){ if(!num(age)||!num(scr)||!num(wt))return null; const f=g==='F'?0.85:1; return ((140-num(age))*num(wt)*f)/(72*num(scr)); }
+function calcMDRD(scr,age,g){ if(!num(scr)||!num(age))return null; let e=175*Math.pow(num(scr),-1.154)*Math.pow(num(age),-0.203); if(g==='F')e*=0.742; return e; }
+function calcEPI(scr,age,g){ if(!num(scr)||!num(age))return null; const k=g==='F'?0.7:0.9,a=g==='F'?-0.241:-0.302,ra=num(scr)/k;
+  let e=142*Math.pow(Math.min(ra,1),a)*Math.pow(Math.max(ra,1),-1.200)*Math.pow(0.9938,num(age)); if(g==='F')e*=1.012; return e; }
+function ckdStage(e){ if(e==null)return null;
+  if(e>=90)return['G1','≥90'];if(e>=60)return['G2','60–89'];if(e>=45)return['G3a','45–59'];
+  if(e>=30)return['G3b','30–44'];if(e>=15)return['G4','15–29'];return['G5','<15']; }
+function gcsAssess(s){ s=num(s); if(s==null)return null;
+  if(s>15||s<3)return ['','分數需介於 3–15'];
+  if(s===15)return['g','意識正常'];
+  if(s>=13)return['a','輕度昏迷'];
+  if(s>=9)return['a','中度昏迷 · 腦部可能問題或受傷'];
+  if(s>=4)return['r','重度昏迷 · 情況嚴重、預後可能較差'];
+  return['r','深度昏迷 · 可能有生命危險']; }
+
+/* ---- helpers to fetch latest values ---- */
+function latest(arr){ if(!arr||!arr.length)return null; return [...arr].sort((a,b)=>a.date<b.date?1:(a.date>b.date?-1:0))[0]; }
+function latestWeight(p){ const e=latest(p.panels.weight); return e?num(e.value):null; }
+function latestScr(p){ const e=latest(p.panels.scr); return e?num(e.value):null; }
+function effectiveCGWeight(p){
+  const aw=latestWeight(p), ibw=calcIBW(p.heightCm,p.gender);
+  if(p.cgWeight==='ibw') return ibw;
+  if(p.cgWeight==='adjusted') return (aw!=null&&ibw!=null)?calcABW(aw,ibw):aw;
+  return aw;
+}
+
+/* ============================================================
+   PATIENT-LEVEL AUTO ALERTS  (drives ward-round review)
+   ============================================================ */
+function patientAlerts(p){
+  const a=[];
+  const scr=latestScr(p), egfr=calcEPI(scr,p.age,p.gender);
+  if(egfr!=null){ if(egfr<30)a.push(['r','腎功能↓↓ eGFR '+r1(egfr)+' → 腎調']);
+    else if(egfr<60)a.push(['a','腎功能↓ eGFR '+r1(egfr)+' → 留意腎調']); }
+  const lv=latest(p.panels.liver);
+  if(lv){ if(num(lv.alt)>120)a.push(['a','ALT↑ '+lv.alt+' → 肝調評估']);
+    if(num(lv.bili)>2)a.push(['a','Bil↑ '+lv.bili]);
+    if((num(lv.alk)>260)||(num(lv.ggt)>165))a.push(['a','膽汁鬱積? ALK/γ-GT↑']);
+    if(num(lv.ammonia)>80)a.push(['a','Ammonia↑ '+lv.ammonia]); }
+  const e=latest(p.panels.electrolyte);
+  if(e){ if(num(e.k)!=null&&(e.k<3.5||e.k>5.1))a.push([e.k>5.5||e.k<3?'r':'a','K '+e.k]);
+    if(num(e.na)!=null&&(e.na<135||e.na>145))a.push(['a','Na '+e.na]);
+    if(num(e.mg)!=null&&e.mg<1.8)a.push(['a','Mg↓ '+e.mg]);
+    if(num(e.p)!=null&&(e.p<2.5||e.p>4.5))a.push(['a','P '+e.p]); }
+  const inf=latest(p.panels.infection);
+  if(inf){ if(num(inf.crp)>5)a.push(['a','CRP↑ '+inf.crp]); if(num(inf.lactate)>2)a.push(['r','Lactate↑ '+inf.lactate]); }
+  const cb=latest(p.panels.cbc);
+  if(cb){ if(num(cb.wbc)!=null&&(cb.wbc>12||cb.wbc<4))a.push(['a','WBC '+cb.wbc]); if(num(cb.plt)<100)a.push(['a','PLT↓ '+cb.plt]); }
+  const gg=gcsAssess(p.gcs); if(gg&&(gg[0]==='r'||gg[0]==='a'))a.push([gg[0],'GCS '+num(p.gcs)+' · '+gg[1].split(' · ')[0]]);
+  if(p.dialysis)a.push(['b','透析中'+(p.dialysisMode?' · '+p.dialysisMode:'')]);
+  if(p.intubation)a.push(['b','插管中']);
+  if(p.allergy&&p.allergy.trim())a.push(['r','過敏: '+p.allergy.trim()]);
+  // meds flagged
+  const flagged=(p.meds||[]).filter(m=>m.status&&m.status!=='none'&&m.status!=='continue');
+  if(flagged.length)a.push(['a','藥物待處理 ×'+flagged.length]);
+  return a;
+}
+function sidebarDots(p){
+  const d=[]; const scr=latestScr(p),egfr=calcEPI(scr,p.age,p.gender);
+  if(egfr!=null&&egfr<60)d.push([egfr<30?'r':'a','腎']);
+  const lv=latest(p.panels.liver); if(lv&&(num(lv.alt)>120||num(lv.bili)>2))d.push(['a','肝']);
+  if(p.dialysis)d.push(['b','洗']); if(p.intubation)d.push(['b','插']);
+  const flagged=(p.meds||[]).filter(m=>m.status&&m.status!=='none'&&m.status!=='continue').length;
+  if(flagged)d.push(['a','藥'+flagged]);
+  return d;
+}
+
+/* ============================================================
+   RENDER — sidebar list
+   ============================================================ */
+function renderList(){
+  const q=(document.getElementById('search').value||'').toLowerCase().trim();
+  const el=document.getElementById('plist'); el.innerHTML='';
+  let list=[...db.patients].sort((a,b)=>(a.bed||'~').localeCompare(b.bed||'~','zh-Hant',{numeric:true}));
+  if(q)list=list.filter(p=>[p.bed,p.name,p.mrn].some(x=>(x||'').toLowerCase().includes(q)));
+  if(!list.length){ el.innerHTML='<div class="emptyhint">尚無病人<br>點右上「＋ 新增病人」或「示範」</div>'; return; }
+  list.forEach(p=>{
+    const dots=sidebarDots(p).map(d=>`<span class="dot ${d[0]}">${d[1]}</span>`).join('');
+    const div=document.createElement('div');
+    div.className='pcard'+(p.id===db.selectedId?' active':'');
+    div.onclick=()=>{ db.selectedId=p.id; renderList(); renderMain(); if(window.innerWidth<=860)toggleSidebar(true); };
+    div.innerHTML=`
+      <div class="bedbadge"><small>BED</small>${esc(p.bed)||'—'}</div>
+      <div style="min-width:0;flex:1">
+        <div class="pname">${esc(p.name)||'<span style="color:var(--muted)">未命名</span>'}</div>
+        <div class="pmeta">${esc(p.mrn)||'無病歷號'} · ${p.age||'?'}y ${p.gender==='M'?'♂':p.gender==='F'?'♀':''}</div>
+        ${dots?`<div class="dotrow">${dots}</div>`:''}
+      </div>`;
+    el.appendChild(div);
+  });
+}
+
+/* ============================================================
+   RENDER — main patient view
+   ============================================================ */
+function renderMain(){
+  const m=document.getElementById('main');
+  const p=db.patients.find(x=>x.id===db.selectedId);
+  if(!p){
+    m.innerHTML=`<div class="welcome">
+      <h2 class="serif">Patient Rounds</h2>
+      <p>選擇左側病人，或新增一位病人開始記錄。<br>所有資料自動儲存於此連結，可隨時回來更新。</p>
+    </div>`; return;
+  }
+  const ibw=calcIBW(p.heightCm,p.gender), bmi=calcBMI(latestWeight(p),p.heightCm);
+  const scr=latestScr(p);
+  const cg=calcCG(p.age,scr,effectiveCGWeight(p),p.gender);
+  const mdrd=calcMDRD(scr,p.age,p.gender), epi=calcEPI(scr,p.age,p.gender);
+  const stage=ckdStage(epi);
+  const alerts=patientAlerts(p).map(a=>`<span class="alert ${a[0]}">${a[1]}</span>`).join('');
+
+  m.innerHTML=`
+  <nav class="subnav">
+    <a href="#sec-char">Characteristic</a>
+    <a href="#sec-renal">Renal</a>
+    <a href="#sec-liver">Liver</a>
+    <a href="#sec-status">病人現況</a>
+    <a href="#sec-med">Medication</a>
+    <a href="#sec-lab">Lab data</a>
+    <a href="#sec-note">Daily note</a>
+  </nav>
+
+  <div class="phead">
+    <span class="h-bed">BED ${esc(p.bed)||'—'}</span>
+    <span class="h-name">${esc(p.name)||'未命名'}</span>
+    <span class="h-meta">${esc(p.mrn)||'無病歷號'} · ${p.age||'?'}y ${p.gender==='M'?'♂男':p.gender==='F'?'♀女':''} · 入院 ${esc(p.admitDate)||'—'}</span>
+    <div style="flex:1"></div>
+    <button class="tbtn ghost" onclick="window.print()">列印</button>
+    <button class="tbtn ghost danger" onclick="deletePatient('${p.id}')">刪除病人</button>
+  </div>
+  ${alerts?`<div class="alertbar">${alerts}</div>`:''}
+
+  <!-- CHARACTERISTIC -->
+  <section class="card" id="sec-char">
+    <div class="chead"><span class="ctitle">Characteristic</span><span class="ctag">基本資料</span></div>
+    <div class="grid">
+      ${inp(p,'bed','床號')}
+      ${inp(p,'name','姓名')}
+      ${inp(p,'mrn','病歷號')}
+      ${inp(p,'admitDate','入院日期','date')}
+      ${sel(p,'gender','性別',[['','—'],['M','男 M'],['F','女 F']])}
+      ${inp(p,'allergy','藥物過敏史 Drug allergy')}
+      ${inp(p,'age','年齡 y/o','number')}
+      ${inp(p,'heightCm','身高 (cm)','number')}
+      <div class="field">
+        <label>每日體重 Weight (kg) · 最新</label>
+        <div class="computed"><span class="val mono">${latestWeight(p)!=null?r1(latestWeight(p)):'—'}</span><span class="unit">kg</span>
+        <button class="calclink" onclick="document.getElementById('sec-renal').scrollIntoView({behavior:'smooth'})">於 Renal 區更新 ↓</button></div>
+      </div>
+      <div class="field">
+        <label>理想體重 IBW (Devine)</label>
+        <div class="computed"><span class="val mono">${ibw!=null?r1(ibw):'—'}</span><span class="unit">kg</span>
+        <button class="calclink" onclick="showCalc('ibw','${p.id}')">計算過程</button></div>
+      </div>
+      <div class="field">
+        <label>BMI</label>
+        <div class="computed"><span class="val mono">${bmi!=null?r1(bmi):'—'}</span><span class="unit">kg/m²</span>
+        <button class="calclink" onclick="showCalc('bmi','${p.id}')">計算過程</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RENAL -->
+  <section class="card" id="sec-renal">
+    <div class="chead"><span class="ctitle">Renal function</span><span class="ctag">含每日記錄 / 自動 eGFR</span></div>
+    <div class="grid" style="margin-bottom:14px">
+      <div class="field"><label>eGFR · Cockcroft-Gault</label>
+        <div class="computed"><span class="val mono">${cg!=null?r1(cg):'—'}</span><span class="unit">mL/min</span>
+        <button class="calclink" onclick="showCalc('cg','${p.id}')">計算過程</button></div></div>
+      <div class="field"><label>eGFR · MDRD (175)</label>
+        <div class="computed"><span class="val mono">${mdrd!=null?r1(mdrd):'—'}</span><span class="unit">mL/min/1.73</span>
+        <button class="calclink" onclick="showCalc('mdrd','${p.id}')">計算過程</button></div></div>
+      <div class="field"><label>eGFR · CKD-EPI 2021</label>
+        <div class="computed"><span class="val mono">${epi!=null?r1(epi):'—'}</span><span class="unit">mL/min/1.73</span>
+        <button class="calclink" onclick="showCalc('epi','${p.id}')">計算過程</button></div></div>
+      <div class="field"><label>Renal stage (依 CKD-EPI)</label>
+        <div class="computed"><span class="val mono">${stage?stage[0]:'—'}</span><span class="unit">${stage?'('+stage[1]+')':''}</span></div></div>
+      <div class="field"><label>現在體重 (CG 計算基準)</label>
+        <select onchange="setFieldR('${p.id}','cgWeight',this.value)">
+          <option value="actual" ${p.cgWeight==='actual'?'selected':''}>實際體重 Actual</option>
+          <option value="ibw" ${p.cgWeight==='ibw'?'selected':''}>理想體重 IBW</option>
+          <option value="adjusted" ${p.cgWeight==='adjusted'?'selected':''}>校正體重 Adjusted</option>
+        </select></div>
+    </div>
+    ${panelHTML(p,'scr')}
+    ${panelHTML(p,'bun')}
+    ${panelHTML(p,'io')}
+    ${panelHTML(p,'weight')}
+  </section>
+
+  <!-- LIVER -->
+  <section class="card" id="sec-liver">
+    <div class="chead"><span class="ctitle">Liver function</span><span class="ctag">每日記錄</span></div>
+    ${panelHTML(p,'liver')}
+  </section>
+
+  <!-- STATUS -->
+  <section class="card" id="sec-status">
+    <div class="chead"><span class="ctitle">病人現況</span><span class="ctag">Patient status</span></div>
+    <div class="grid" style="grid-template-columns:1fr">
+      ${ta(p,'risk','Risk history 風險病史')}
+      ${ta(p,'past','Past history 過去病史')}
+      ${ta(p,'active','Active problem / Progress 目前問題與病程')}
+      ${ta(p,'surgery','Surgery 手術')}
+      <div class="field"><label>GCS 昏迷指數 (3–15)</label>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <input type="number" min="3" max="15" style="max-width:110px" value="${esc(p.gcs)}" oninput="setField('${p.id}','gcs',this.value)" onchange="renderMain()">
+          ${gcsBadge(p.gcs)}
+        </div></div>
+      <div class="field"><label>插管 / 透析</label>
+        <div style="display:flex;gap:18px;padding:6px 2px;flex-wrap:wrap">
+          <label class="empiric-chip"><input type="checkbox" ${p.intubation?'checked':''} onchange="setFieldR('${p.id}','intubation',this.checked)"> 插管 Intubation</label>
+          <label class="empiric-chip"><input type="checkbox" ${p.dialysis?'checked':''} onchange="setFieldR('${p.id}','dialysis',this.checked)"> 洗腎 Dialysis</label>
+        </div></div>
+      ${p.dialysis?`<div class="field" style="border:1px dashed var(--line);border-radius:10px;padding:12px;background:var(--paper)">
+        <label>透析細項 Dialysis settings</label>
+        <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr));margin-top:4px">
+          <div class="field"><label>透析模式 Mode</label>
+            <select onchange="setFieldR('${p.id}','dialysisMode',this.value)">
+              <option value="" ${!p.dialysisMode?'selected':''}>—</option>
+              <option value="IHD" ${p.dialysisMode==='IHD'?'selected':''}>IHD 間歇性血液透析</option>
+              <option value="CRRT" ${p.dialysisMode==='CRRT'?'selected':''}>CRRT 連續性腎臟替代療法</option>
+              <option value="CAPD" ${p.dialysisMode==='CAPD'?'selected':''}>CAPD 腹膜透析</option>
+            </select></div>
+          <div class="field"><label>血液流速 Blood flow (mL/min)</label>
+            <input type="number" value="${esc(p.bloodFlow)}" oninput="setField('${p.id}','bloodFlow',this.value)"></div>
+          <div class="field"><label>透析流速 Dialysate flow (mL/hr)</label>
+            <input type="number" value="${esc(p.dialysateFlow)}" oninput="setField('${p.id}','dialysateFlow',this.value)"></div>
+        </div></div>`:''}
+      ${ta(p,'plan','Plan / Suggestion 計畫與建議')}
+    </div>
+  </section>
+
+  <!-- MEDICATION -->
+  <section class="card" id="sec-med">
+    <div class="chead"><span class="ctitle">Medication</span><span class="ctag">查房調整重點</span>
+      <span class="spacer"></span></div>
+    ${medsHTML(p)}
+  </section>
+
+  <!-- LAB DATA -->
+  <section class="card" id="sec-lab">
+    <div class="chead"><span class="ctitle">Lab data</span><span class="ctag">每日記錄</span></div>
+    ${panelHTML(p,'cbc')}
+    ${panelHTML(p,'electrolyte')}
+    ${panelHTML(p,'infection')}
+    ${panelHTML(p,'culture')}
+    ${panelHTML(p,'filmarray')}
+    ${panelHTML(p,'others')}
+  </section>
+
+  <!-- DAILY NOTE -->
+  <section class="card" id="sec-note">
+    <div class="chead"><span class="ctitle">Daily note</span><span class="ctag">每日記錄</span>
+      <span class="spacer"></span><button class="miniadd" onclick="addNote('${p.id}')">＋ 新增 note</button></div>
+    ${notesHTML(p)}
+  </section>
+
+  <div class="footer-note">資料自動儲存於此連結（瀏覽器 / Claude 內建儲存）。重要資料請定期「匯出」備份。<br>
+  本工具為輔助記錄與計算，所有臨床判斷與劑量決定仍應以醫療團隊與原始檢驗報告為準。</div>
+  `;
+}
+
+/* ---------- field builders ---------- */
+function esc(s){return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function inp(p,key,label,type='text'){
+  return `<div class="field"><label>${label}</label>
+    <input type="${type}" value="${esc(p[key])}" oninput="setField('${p.id}','${key}',this.value)" onchange="renderMain()"></div>`;
+}
+function sel(p,key,label,opts){
+  return `<div class="field"><label>${label}</label><select onchange="setFieldR('${p.id}','${key}',this.value)">
+    ${opts.map(o=>`<option value="${o[0]}" ${p[key]===o[0]?'selected':''}>${o[1]}</option>`).join('')}</select></div>`;
+}
+function ta(p,key,label){
+  return `<div class="field"><label>${label}</label>
+    <textarea oninput="setField('${p.id}','${key}',this.value)">${esc(p[key])}</textarea></div>`;
+}
+function gcsBadge(v){ const a=gcsAssess(v); if(!a)return '<span style="color:var(--muted);font-size:12px">輸入分數後顯示評估</span>';
+  const cls=a[0]==='r'?'r':a[0]==='a'?'a':a[0]==='g'?'g':'';
+  return `<span class="dot ${cls}" style="font-size:12px;padding:4px 11px">GCS ${num(v)} · ${a[1]}</span>`; }
+
+/* ---------- generic dated panel ---------- */
+function flagOf(v,ref){ if(v==null||!ref)return ''; if(v<ref[0])return 'flag-low'; if(v>ref[1])return 'flag-high'; return ''; }
+function arrowOf(cls){ return cls==='flag-high'?'<span class="arrow">▲</span>':cls==='flag-low'?'<span class="arrow">▼</span>':''; }
+
+function panelHTML(p,type){
+  const def=PANELS[type], arr=p.panels[type]||[], last=latest(arr);
+  let latestRow='';
+  if(last){
+    latestRow='<div class="latestrow">'+def.fields.filter(f=>f.type!=='auto').map(f=>{
+      let raw=last[f.k];
+      if(f.type==='num'){ const v=num(raw); const cls=flagOf(v,f.ref);
+        return `<div class="lv"><span class="lk">${f.label}</span>
+          <span class="lval ${cls}">${v!=null?raw:'—'}${arrowOf(cls)}<span class="u">${f.unit||''}</span></span>
+          ${f.ref?`<span class="lref">ref ${f.ref[0]}–${f.ref[1]}</span>`:''}</div>`;
+      }else if(f.type==='select'){ const cls=raw&&raw.includes('+')?'high':(raw&&raw.includes('−')?'norm':'');
+        return `<div class="lv"><span class="lk">${f.label}</span><span class="txtval ${cls}">${esc(raw)||'—'}</span></div>`;
+      }else{ return `<div class="lv"><span class="lk">${f.label}</span><span class="lval" style="font-size:13px">${esc(raw)||'—'}</span></div>`; }
+    }).join('');
+    if(type==='io'){ const net=num(last.intake)-num(last.output);
+      latestRow+=`<div class="lv"><span class="lk">I − O</span><span class="lval ${isFinite(net)&&net<0?'flag-low':''}">${isFinite(net)?(net>0?'+':'')+net:'—'}<span class="u">mL</span></span></div>`; }
+    latestRow+=`<div class="lv" style="margin-left:auto"><span class="lk">日期</span><span class="ldate">${esc(last.date)}</span></div></div>`;
+  }else{ latestRow='<div class="nodata">尚無資料 — 點「＋ 新增」開始記錄</div>'; }
+
+  const histRows=[...arr].sort((a,b)=>a.date<b.date?1:-1).map(e=>{
+    const cells=def.fields.filter(f=>f.type!=='auto').map(f=>`<td class="${f.type==='num'?'mono':''}">${esc(e[f.k])||'·'}</td>`).join('');
+    const net=type==='io'?`<td class="mono">${isFinite(num(e.intake)-num(e.output))?(num(e.intake)-num(e.output)):'·'}</td>`:'';
+    return `<tr><td class="mono">${esc(e.date)}</td>${cells}${net}
+      <td class="rowact"><button onclick="editEntry('${p.id}','${type}','${e.id}')">編輯</button>
+      <button onclick="delEntry('${p.id}','${type}','${e.id}')">刪除</button></td></tr>`;
+  }).join('');
+  const head=def.fields.filter(f=>f.type!=='auto').map(f=>`<th>${f.label}</th>`).join('')+(type==='io'?'<th>I − O</th>':'');
+
+  return `<div class="panel" id="panel-${type}">
+    <div class="phd"><span class="ptitle">${def.title}</span>${def.tag?`<span class="punit">· ${def.tag}</span>`:''}
+      <span class="spacer"></span><button class="miniadd" onclick="addEntry('${p.id}','${type}')">＋ 新增</button></div>
+    ${latestRow}
+    ${arr.length?`<div class="hist"><button class="histtoggle" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='block'?'none':'block'">⌄ 歷史紀錄 (${arr.length})</button>
+      <div class="scrollx" style="display:none"><table class="ht"><thead><tr><th>日期</th>${head}<th></th></tr></thead><tbody>${histRows}</tbody></table></div></div>`:''}
+  </div>`;
+}
+
+/* ---------- medications ---------- */
+const MEDSTATUS=[['none','—'],['continue','續用'],['monitor','觀察監測'],['renal','腎功能調整'],['hepatic','肝功能調整'],['adjust','建議調整劑量'],['stop','建議停藥']];
+const MEDCATS=[
+  ['antibiotic','Antibiotic 抗生素'],
+  ['inpatient','入院後給予 Inpatient'],
+  ['opd_cont','OPD 可續用'],
+  ['opd_na','OPD 不適用']
+];
+function medRow(p,m,i){
+  const stopCls=m.status==='stop'?' medrow-stop':'';
+  return `<tr class="${stopCls}">
+    <td style="width:26px;color:var(--muted)" class="mono">${i+1}</td>
+    <td style="min-width:160px"><input value="${esc(m.name)}" placeholder="藥名 + 劑量 + 途徑 + 頻次" oninput="setMed('${p.id}','${m.id}','name',this.value)"></td>
+    <td style="width:118px"><input type="date" value="${esc(m.start)}" oninput="setMed('${p.id}','${m.id}','start',this.value)"></td>
+    <td style="width:118px"><input type="date" value="${esc(m.end)}" oninput="setMed('${p.id}','${m.id}','end',this.value)"></td>
+    <td style="min-width:110px"><input value="${esc(m.indication)}" placeholder="indication" oninput="setMed('${p.id}','${m.id}','indication',this.value)"></td>
+    <td style="width:48px;text-align:center"><input type="checkbox" ${m.empiric?'checked':''} onchange="setMed('${p.id}','${m.id}','empiric',this.checked)" title="empiric 經驗性"></td>
+    <td style="width:126px"><select class="statussel st-${m.status||'none'}" onchange="setMed('${p.id}','${m.id}','status',this.value)">
+      ${MEDSTATUS.map(s=>`<option value="${s[0]}" ${m.status===s[0]?'selected':''}>${s[1]}</option>`).join('')}</select></td>
+    <td style="min-width:130px"><textarea placeholder="調整備註 / 理由" oninput="setMed('${p.id}','${m.id}','note',this.value)">${esc(m.note)}</textarea></td>
+    <td style="width:30px"><button class="delrow" onclick="delMed('${p.id}','${m.id}')">×</button></td>
+  </tr>`;
+}
+function medsHTML(p){
+  if(!p.meds)p.meds=[];
+  return MEDCATS.map(cat=>{
+    const ms=p.meds.filter(m=>(m.category||'inpatient')===cat[0]);
+    const rows=ms.map((m,i)=>medRow(p,m,i)).join('');
+    return `<div style="margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span style="font-weight:700;font-size:13.5px;color:var(--primary)">${cat[1]}</span>
+        <span class="punit">· ${ms.length} 項</span>
+        <span style="flex:1"></span>
+        <button class="miniadd" onclick="addMed('${p.id}','${cat[0]}')">＋ 新增</button>
+      </div>
+      <div class="scrollx"><table class="medtable">
+        <thead><tr><th>#</th><th>藥名 / 劑量 / 途徑 / 頻次</th><th>起始</th><th>結束</th><th>Indication</th><th>Emp.</th><th>狀態 (查房)</th><th>備註</th><th></th></tr></thead>
+        <tbody>${rows||'<tr><td colspan="9" style="color:var(--muted);padding:10px">—</td></tr>'}</tbody></table></div>
+    </div>`;
+  }).join('');
+}
+
+/* ---------- daily notes ---------- */
+function notesHTML(p){
+  if(!p.dailyNotes)p.dailyNotes=[];
+  if(!p.dailyNotes.length)return '<div class="nodata">尚無 daily note — 點「＋ 新增 note」</div>';
+  return '<div class="notelog">'+[...p.dailyNotes].sort((a,b)=>a.date<b.date?1:-1).map(n=>`
+    <div class="noteitem">
+      <div class="nd"><input type="date" value="${esc(n.date)}" style="border:none;background:none;font-family:inherit;color:var(--primary);font-weight:600;padding:0" onchange="setNote('${p.id}','${n.id}','date',this.value)">
+        <button onclick="delNote('${p.id}','${n.id}')">刪除</button></div>
+      <textarea class="ntext" style="width:100%;border:1px solid var(--line-soft);border-radius:8px;padding:8px;resize:vertical;min-height:54px" oninput="setNote('${p.id}','${n.id}','text',this.value)">${esc(n.text)}</textarea>
+    </div>`).join('')+'</div>';
+}
+
+/* ============================================================
+   MUTATIONS
+   ============================================================ */
+function withP(id){return db.patients.find(x=>x.id===id);}
+function setField(id,key,val){ const p=withP(id); if(!p)return; p[key]=val; persist(); renderList(); }
+function setFieldR(id,key,val){ setField(id,key,val); renderMain(); }
+function addPatient(){ const p=blankPatient(); db.patients.push(p); db.selectedId=p.id; persist(); renderList(); renderMain();
+  if(window.innerWidth<=860)toggleSidebar(true); document.getElementById('main').scrollIntoView(); }
+function deletePatient(id){ if(!confirm('確定刪除此病人的所有資料？此動作無法復原。'))return;
+  db.patients=db.patients.filter(x=>x.id!==id); if(db.selectedId===id)db.selectedId=db.patients[0]?.id||null; persist(); renderList(); renderMain(); }
+
+/* meds */
+function addMed(id,category){ const p=withP(id); (p.meds=p.meds||[]).push({id:uid(),category:category||'inpatient',name:'',dose:'',route:'',freq:'',start:today(),end:'',indication:'',empiric:category==='antibiotic',status:'none',note:''}); persist(); renderMain(); }
+function setMed(id,mid,key,val){ const p=withP(id); const m=p.meds.find(x=>x.id===mid); if(!m)return; m[key]=val; persist();
+  if(key==='status'){ renderMain(); renderList(); } else if(key==='name'){ /* keep cursor */ } }
+function delMed(id,mid){ const p=withP(id); p.meds=p.meds.filter(x=>x.id!==mid); persist(); renderMain(); renderList(); }
+
+/* notes */
+function addNote(id){ const p=withP(id); (p.dailyNotes=p.dailyNotes||[]).unshift({id:uid(),date:today(),text:''}); persist(); renderMain(); }
+function setNote(id,nid,key,val){ const p=withP(id); const n=p.dailyNotes.find(x=>x.id===nid); if(!n)return; n[key]=val; persist(); }
+function delNote(id,nid){ const p=withP(id); p.dailyNotes=p.dailyNotes.filter(x=>x.id!==nid); persist(); renderMain(); }
+
+/* ============================================================
+   PANEL ENTRY MODAL (add / edit dated entries)
+   ============================================================ */
+function addEntry(pid,type){ openEntryModal(pid,type,null); }
+function editEntry(pid,type,eid){ openEntryModal(pid,type,eid); }
+function delEntry(pid,type,eid){ const p=withP(pid); p.panels[type]=p.panels[type].filter(e=>e.id!==eid); persist(); renderMain(); renderList(); }
+
+function openEntryModal(pid,type,eid){
+  const p=withP(pid), def=PANELS[type];
+  const existing= eid? p.panels[type].find(e=>e.id===eid):null;
+  const data= existing?{...existing}:{date:today()};
+  const fieldsHTML=def.fields.filter(f=>f.type!=='auto').map(f=>{
+    const v=data[f.k]!=null?data[f.k]:'';
+    if(f.type==='select'){
+      return `<div class="field"><label>${f.label}</label><select data-k="${f.k}">
+        ${f.opts.map(o=>`<option value="${esc(o)}" ${v===o?'selected':''}>${esc(o)||'—'}</option>`).join('')}</select></div>`;
+    }else if(f.type==='textarea'){
+      return `<div class="field"><label>${f.label}</label><textarea data-k="${f.k}" placeholder="${f.ph||''}">${esc(v)}</textarea></div>`;
+    }else{
+      return `<div class="field"><label>${f.label}${f.unit?` <span style="color:var(--muted)">(${f.unit})</span>`:''}${f.ref?` <span style="color:var(--muted)">ref ${f.ref[0]}–${f.ref[1]}</span>`:''}</label>
+        <input type="${f.type==='num'?'number':'text'}" step="any" data-k="${f.k}" value="${esc(v)}" placeholder="${f.ph||''}"></div>`;
+    }
+  }).join('');
+  const single=def.fields.filter(f=>f.type!=='auto').length===1;
+  openModal(`
+    <div class="mhd"><h3>${eid?'編輯':'新增'} · ${def.title}</h3><button class="x" onclick="closeModal()">×</button></div>
+    <div class="mbody">
+      <div class="field" style="margin-bottom:14px"><label>日期</label><input type="date" id="entryDate" value="${esc(data.date)}"></div>
+      <div class="grid" style="grid-template-columns:${single?'1fr':'repeat(auto-fill,minmax(150px,1fr))'}" id="entryFields">${fieldsHTML}</div>
+    </div>
+    <div class="mfoot"><button class="tbtn ghost" onclick="closeModal()">取消</button>
+      <button class="tbtn primary" onclick="saveEntry('${pid}','${type}','${eid||''}')">儲存</button></div>`);
+}
+function saveEntry(pid,type,eid){
+  const p=withP(pid);
+  const date=document.getElementById('entryDate').value||today();
+  const obj={date};
+  document.querySelectorAll('#entryFields [data-k]').forEach(el=>{ obj[el.dataset.k]=el.value; });
+  if(eid){ const e=p.panels[type].find(x=>x.id===eid); Object.assign(e,obj); }
+  else{ obj.id=uid(); p.panels[type].push(obj); }
+  persist(); closeModal(); renderMain(); renderList();
+}
+
+/* ============================================================
+   CALCULATION DETAIL MODALS
+   ============================================================ */
+function showCalc(which,pid){
+  const p=withP(pid); const g=p.gender, gtxt=g==='F'?'女':g==='M'?'男':'(未填性別)';
+  const h=num(p.heightCm), age=num(p.age), scr=latestScr(p), aw=latestWeight(p);
+  let html='';
+  if(which==='ibw'){
+    const inch=h?h/2.54:null, base=g==='F'?45.5:50, ibw=calcIBW(h,g);
+    html=block('理想體重 IBW · Devine formula',
+      `公式 (${gtxt})：\nIBW = <span class="hl">${base}</span> + 2.3 × ( 身高(inch) − 60 )\n\n`+
+      (h?`身高 = ${h} cm ÷ 2.54 = <span class="hl">${r2(inch)}</span> inch\nIBW = ${base} + 2.3 × ( ${r2(inch)} − 60 )\nIBW = ${base} + 2.3 × ${r2(inch-60)}`:'尚未填入身高'),
+      ibw!=null?r1(ibw)+' kg':'—', null,
+      '男性 base=50、女性 base=45.5。Devine 公式於身高 < 152.4 cm (60 in) 時可能偏低，臨床請斟酌。');
+  }
+  else if(which==='bmi'){
+    const m=h?h/100:null, bmi=calcBMI(aw,h);
+    html=block('BMI',
+      `公式：BMI = 體重(kg) ÷ 身高(m)²\n\n`+
+      (aw!=null&&h?`= ${r1(aw)} ÷ ( ${m} )²\n= ${r1(aw)} ÷ ${r2(m*m)}`:'需要最新體重與身高'),
+      bmi!=null?r1(bmi)+' kg/m²':'—', null,
+      '體重取「Renal 區」中最新一筆每日體重。');
+  }
+  else if(which==='cg'){
+    const wt=effectiveCGWeight(p), f=g==='F'?0.85:1, cg=calcCG(age,scr,wt,g);
+    const wlabel=p.cgWeight==='ibw'?'IBW':p.cgWeight==='adjusted'?'校正體重(ABW)':'實際體重';
+    html=block('eGFR · Cockcroft-Gault',
+      `公式：\nCrCl = ( (140 − age) × 體重 × ${gtxt==='女'?'0.85(女)':'1(男)'} ) ÷ ( 72 × Scr )\n\n`+
+      (age&&scr&&wt!=null?`代入 (體重基準：${wlabel} = ${r1(wt)} kg)：\n= ( (140 − ${age}) × ${r1(wt)} × ${f} ) ÷ ( 72 × ${scr} )\n= ( ${r1((140-age))} × ${r1(wt)} × ${f} ) ÷ ${72*scr}\n= ${r1((140-age)*wt*f)} ÷ ${72*scr}`:'需要 年齡、最新 Scr、體重'),
+      cg!=null?r1(cg)+' mL/min':'—', null,
+      '體重基準可於 Renal 區下拉切換（實際 / IBW / 校正）。肥胖病人常建議用校正體重；極瘦者用實際體重。');
+  }
+  else if(which==='mdrd'){
+    const e=calcMDRD(scr,age,g);
+    html=block('eGFR · MDRD (4-variable, IDMS, 175)',
+      `公式 (未含種族係數)：\neGFR = 175 × Scr^(−1.154) × age^(−0.203) ${gtxt==='女'?'× 0.742(女)':''}\n\n`+
+      (scr&&age?`= 175 × ${scr}^(−1.154) × ${age}^(−0.203)${g==='F'?' × 0.742':''}\n= 175 × ${r2(Math.pow(scr,-1.154))} × ${r2(Math.pow(age,-0.203))}${g==='F'?' × 0.742':''}`:'需要 最新 Scr 與 年齡'),
+      e!=null?r1(e)+' mL/min/1.73m²':'—', null,
+      '依 2021 NKF-ASN 建議已移除種族係數（適用台灣族群）。');
+  }
+  else if(which==='epi'){
+    const e=calcEPI(scr,age,g);
+    const k=g==='F'?0.7:0.9, a=g==='F'?-0.241:-0.302, ra=scr?scr/k:null;
+    html=block('eGFR · CKD-EPI 2021 creatinine (race-free)',
+      `參數 (${gtxt})：κ=${k}，α=${a}${g==='F'?'，女性 ×1.012':''}\n`+
+      `公式：\neGFR = 142 × min(Scr/κ,1)^α × max(Scr/κ,1)^(−1.200) × 0.9938^age ${g==='F'?'× 1.012':''}\n\n`+
+      (scr&&age?`Scr/κ = ${scr}/${k} = <span class="hl">${r2(ra)}</span>\n= 142 × min(${r2(ra)},1)^${a} × max(${r2(ra)},1)^(−1.2) × 0.9938^${age}${g==='F'?' × 1.012':''}`:'需要 最新 Scr 與 年齡'),
+      e!=null?r1(e)+' mL/min/1.73m²':'—',
+      e!=null?ckdStage(e):null,
+      '2021 race-free 版本，為目前 KDIGO 建議優先採用之公式。');
+  }
+  openModal(`<div class="mhd"><h3>計算過程</h3><button class="x" onclick="closeModal()">×</button></div>
+    <div class="mbody calc-modal-body">${html}</div>
+    <div class="mfoot"><button class="tbtn primary" onclick="closeModal()">關閉</button></div>`,'calc-modal');
+}
+function block(title,formula,result,stage,note){
+  return `<div class="calc-block">
+    <h4>${title}</h4>
+    <div class="calc-formula">${formula}</div>
+    <div class="calc-res">= ${result}</div>
+    ${stage?`<div class="calc-stage">CKD ${stage[0]} (eGFR ${stage[1]})</div>`:''}
+    ${note?`<div class="calc-note">※ ${note}</div>`:''}
+  </div>`;
+}
+
+/* ============================================================
+   MODAL PRIMITIVES
+   ============================================================ */
+function openModal(inner,cls=''){ const r=document.getElementById('modalRoot');
+  r.innerHTML=`<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal ${cls}">${inner}</div></div>`;
+  const first=r.querySelector('input,select,textarea'); if(first)setTimeout(()=>first.focus(),50);
+}
+function closeModal(){ document.getElementById('modalRoot').innerHTML=''; }
+document.addEventListener('keydown',e=>{ if(e.key==='Escape')closeModal(); });
+
+/* ============================================================
+   IMPORT / EXPORT
+   ============================================================ */
+function exportJSON(){
+  const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='patient_rounds_'+today()+'.json'; a.click(); URL.revokeObjectURL(a.href);
+}
+function importJSON(ev){
+  const file=ev.target.files[0]; if(!file)return; const rd=new FileReader();
+  rd.onload=()=>{ try{ const data=JSON.parse(rd.result);
+      if(!data.patients)throw 0;
+      if(!confirm('匯入將取代目前所有資料，確定？'))return;
+      db=data; if(!db.selectedId)db.selectedId=db.patients[0]?.id||null;
+      db.patients.forEach(migrateP);
+      persist(); renderList(); renderMain();
+    }catch(e){ alert('檔案格式錯誤，無法匯入。'); } };
+  rd.readAsText(file); ev.target.value='';
+}
+
+/* ============================================================
+   CLOUD SYNC SETTINGS MODAL
+   ============================================================ */
+function openSyncModal(sel){
+  const c=Sync.cfg, prov=sel||c.provider||'none';
+  const seg=p=>`<button class="${prov===p?'on':''}" onclick="openSyncModal('${p}')">${p==='none'?'關閉':p==='supabase'?'Supabase':'JSONBin'}</button>`;
+  let form='', steps='';
+  if(prov==='supabase'){
+    form=`
+      ${field('Project URL','sf_url',c.sbUrl,'https://xxxx.supabase.co')}
+      ${field('anon public key','sf_key',c.sbKey,'eyJhbGci…')}
+      ${field('Table 名稱','sf_table',c.sbTable||'pharmd_state','pharmd_state')}
+      ${field('Workspace（同一團隊共用同一個值）','sf_ws',c.workspace||'main','例如 ICU-7')}`;
+    steps=`<div class="steps"><b>Supabase 設定（建議，資料庫由你掌控、可開啟權限控管）</b><ol>
+      <li>到 supabase.com 免費註冊並建立一個 Project（可選 Tokyo/Singapore 區）。</li>
+      <li>SQL Editor 執行：<br><code>create table pharmd_state (id text primary key, data jsonb, updated_at timestamptz default now());</code></li>
+      <li>Project Settings → API：複製 <code>Project URL</code> 與 <code>anon public</code> key 貼到上方。</li>
+      <li>為安全建議開啟 RLS 並建立僅限你存取的政策；正式病人資料請務必去識別化。</li>
+      <li>每台電腦填一樣的設定 + 同一個 Workspace 值，即可互相同步。</li></ol></div>`;
+  } else if(prov==='jsonbin'){
+    form=`
+      ${field('Bin ID','jf_id',c.jbId,'例如 665f0a…')}
+      ${field('X-Master-Key','jf_key',c.jbKey,'$2a$10$…')}`;
+    steps=`<div class="steps"><b>JSONBin 設定（最快，但為第三方公有服務）</b><ol>
+      <li>到 jsonbin.io 免費註冊，API Keys 頁複製 <code>Master Key</code>。</li>
+      <li>建立一個 Bin，內容先填 <code>{"patients":[],"selectedId":null}</code>，存檔後從網址取得 <code>Bin ID</code>。</li>
+      <li>把 Bin ID 與 Master Key 貼到上方。每台電腦填相同設定即可同步。</li>
+      <li><b>僅建議放去識別化 / 練習用資料，勿放真實病歷號與姓名。</b></li></ol></div>`;
+  }
+  openModal(`
+    <div class="mhd"><h3>雲端同步</h3><button class="x" onclick="closeModal()">×</button></div>
+    <div class="mbody">
+      <div class="sync-note">此系統含可識別病人資料。<b>真實病人資料請去識別化，或架設於院內 / 醫院核可之環境並開啟存取控管</b>；公有雲僅建議用於去識別化或練習資料。金鑰只存在這台電腦、不會寫入匯出檔。</div>
+      <div class="field" style="margin-bottom:12px"><label>後端 Backend</label><div class="seg">${seg('none')}${seg('supabase')}${seg('jsonbin')}</div></div>
+      <div class="grid" style="grid-template-columns:1fr" id="syncForm">${form||'<div style="color:var(--muted);font-size:13px">關閉雲端同步：資料只存在本機（此瀏覽器 / Claude 帳號）。</div>'}</div>
+      <label class="empiric-chip" style="margin-top:10px"><input type="checkbox" id="sf_auto" ${c.auto?'checked':''}> 編輯後自動同步到雲端</label>
+      ${steps}
+    </div>
+    <div class="mfoot">
+      <button class="tbtn ghost" onclick="Sync.forcePull()">⬇ 拉取雲端</button>
+      <button class="tbtn ghost" onclick="Sync.forcePush()">⬆ 推送本機</button>
+      <button class="tbtn primary" onclick="saveSync('${prov}')">儲存設定</button>
+    </div>`);
+}
+function field(label,id,val,ph){ return `<div class="field"><label>${label}</label><input id="${id}" value="${esc(val||'')}" placeholder="${ph||''}"></div>`; }
+function saveSync(prov){
+  const c=Sync.cfg; c.provider=prov; c.auto=document.getElementById('sf_auto').checked;
+  if(prov==='supabase'){ c.sbUrl=val('sf_url'); c.sbKey=val('sf_key'); c.sbTable=val('sf_table')||'pharmd_state'; c.workspace=val('sf_ws')||'main'; }
+  if(prov==='jsonbin'){ c.jbId=val('jf_id'); c.jbKey=val('jf_key'); }
+  Sync.saveCfg(); closeModal();
+  if(Sync.configured()){ Sync.initialSync(); } else { Sync.setStatus('idle','未設定'); }
+}
+function val(id){ const e=document.getElementById(id); return e?e.value.trim():''; }
+
+/* ============================================================
+   DEMO + SIDEBAR + INIT
+   ============================================================ */
+function loadDemo(){
+  const p=blankPatient();
+  Object.assign(p,{bed:'12A',name:'王大明',mrn:'01234567',admitDate:'2026-06-02',gender:'M',allergy:'Penicillin (rash)',age:'68',heightCm:'170',
+    risk:'DM type 2, HTN, CKD stage 3',past:'2019 PCI x2；2023 肺炎住院',active:'Community-acquired pneumonia, sepsis；AKI on CKD',surgery:'無',
+    intubation:true,dialysis:true,gcs:'10',dialysisMode:'CRRT',bloodFlow:'150',dialysateFlow:'2000',plan:'追 culture，依腎功能調整抗生素劑量'});
+  p.panels.weight=[{id:uid(),date:'2026-06-02',value:'72'},{id:uid(),date:'2026-06-05',value:'74.5'}];
+  p.panels.scr=[{id:uid(),date:'2026-06-02',value:'1.4'},{id:uid(),date:'2026-06-05',value:'2.1'}];
+  p.panels.bun=[{id:uid(),date:'2026-06-05',value:'38'}];
+  p.panels.io=[{id:uid(),date:'2026-06-05',uo:'900',intake:'2400',output:'1500'}];
+  p.panels.liver=[{id:uid(),date:'2026-06-05',alt:'45',bili:'1.4',alk:'180',ggt:'92',ammonia:'52'}];
+  p.panels.electrolyte=[{id:uid(),date:'2026-06-05',na:'132',k:'5.4',ca:'8.1',p:'4.8',mg:'1.6'}];
+  p.panels.infection=[{id:uid(),date:'2026-06-05',crp:'14.2',lactate:'2.6'}];
+  p.panels.cbc=[{id:uid(),date:'2026-06-05',wbc:'15.3',rbc:'3.6',hb:'10.2',hct:'31',mcv:'86',mch:'28',mchc:'33',plt:'95',seg:'88',band:'6',lym:'4',mono:'2',eo:'0',baso:'0',nrbc:'0'}];
+  p.panels.culture=[{id:uid(),date:'2026-06-03',source:'Blood',organism:'K. pneumoniae',result:'2/2 bottles (+)',note:'ESBL(+)；Carbapenem S, Ceftriaxone R'}];
+  p.panels.others=[{id:uid(),date:'2026-06-02',covid:'陰性 (−)',influenza:'陰性 (−)',legionella:'未檢驗',mycoplasma:'未檢驗',streptococcus:'未檢驗',chlamydia:'未檢驗',result:'Legionella/Pneumococcal urine Ag 待補'}];
+  p.meds=[
+    {id:uid(),category:'antibiotic',name:'Meropenem 1g IV q8h',start:'2026-06-03',end:'',indication:'Sepsis / ESBL KP',empiric:true,status:'renal',note:'CRRT 中，建議依 effluent flow 調整劑量'},
+    {id:uid(),category:'inpatient',name:'Acetaminophen 500mg PO q6h prn',start:'2026-06-02',end:'',indication:'Fever',empiric:false,status:'monitor',note:'注意每日總量 < 3g (肝)'},
+    {id:uid(),category:'inpatient',name:'KCl 40mEq in N/S 500mL IV',start:'2026-06-05',end:'',indication:'(誤) — 病人 K 5.4 偏高',empiric:false,status:'stop',note:'K↑，建議停止補鉀'},
+    {id:uid(),category:'opd_cont',name:'Amlodipine 5mg PO QD',start:'2026-06-02',end:'',indication:'HTN',empiric:false,status:'continue',note:''},
+    {id:uid(),category:'opd_na',name:'Metformin 500mg PO BID',start:'',end:'2026-06-02',indication:'DM',empiric:false,status:'stop',note:'AKI → 停用，避免 lactic acidosis'}
+  ];
+  p.dailyNotes=[{id:uid(),date:'2026-06-05',text:'查房：Scr 由 1.4→2.1，AKI 進展。\n- Meropenem 依 CrCl 調整劑量\n- K 5.4 → 停 KCl，追 ECG\n- CRP 仍高，續 culture'}];
+  db.patients.push(p); db.selectedId=p.id; persist(); renderList(); renderMain();
+}
+function toggleSidebar(force){ const sb=document.getElementById('sidebar'),sc=document.getElementById('scrim');
+  const open= force===true?false:!sb.classList.contains('open');
+  sb.classList.toggle('open',open); sc.classList.toggle('show',open); }
+
+function migrateP(p){
+  p.panels=Object.assign({weight:[],scr:[],io:[],bun:[],liver:[],electrolyte:[],infection:[],cbc:[],culture:[],filmarray:[],others:[]},p.panels||{});
+  p.meds=(p.meds||[]).map(m=>Object.assign({category:'inpatient'},m));
+  p.dailyNotes=p.dailyNotes||[];
+  ['gcs','dialysisMode','bloodFlow','dialysateFlow'].forEach(k=>{ if(p[k]==null)p[k]=''; });
+  if(p.cgWeight==null)p.cgWeight='actual';
+  // migrate old io key input -> intake
+  (p.panels.io||[]).forEach(e=>{ if(e.intake==null&&e.input!=null){ e.intake=e.input; delete e.input; } });
+  return p;
+}
+(async function init(){
+  Sync.loadCfg();
+  const saved=await Store.load();
+  if(saved&&saved.patients){ db=saved;
+    db.patients.forEach(migrateP);
+    if(!db.selectedId)db.selectedId=db.patients[0]?.id||null;
+  }
+  renderList(); renderMain();
+  if(Sync.configured()){ Sync.setStatus('busy'); Sync.initialSync(); }
+  else { Sync.setStatus('idle','未設定'); }
+})();
+</script>
+</body>
+</html>
